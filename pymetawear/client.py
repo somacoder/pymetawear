@@ -168,7 +168,7 @@ class MetaWearClient(object):
                 raw = (c_ubyte * len(content)).from_buffer_copy(content)
                 libmetawear.mbl_mw_metawearboard_deserialize(self.board, raw, len(content))
 
-    def connect(self, clean_connect=False):
+    def connect(self, clean_connect=True):
         """Connect this client to the MetaWear device.
 
         :param bool clean_connect: If old backend components should be replaced.
@@ -178,6 +178,8 @@ class MetaWearClient(object):
         if self.backend.is_connected:
             return
         self.backend.connect(clean_connect=clean_connect)
+        
+        self.deserialize()
 
         if self._debug:
             log.debug("Waiting for MetaWear board to be fully initialized...")
@@ -192,7 +194,8 @@ class MetaWearClient(object):
             else:
                 raise PyMetaWearException("libmetawear initialization status {0}".format(
                     self.backend.initialization_status))
-
+		
+		self.serialize()
         # Read out firmware and model version.
         self.firmware_version_str = self.backend.read_gatt_char_by_uuid(specs.DEV_INFO_FIRMWARE_CHAR[1]).decode()
         self.firmware_version = tuple([int(x) for x in self.firmware_version_str.split('.')])
@@ -202,12 +205,13 @@ class MetaWearClient(object):
 
         self._initialize_modules()
 
-    def free(self):
-        """Frees unmanaged memory used by thie object"""
-        libmetawear.mbl_mw_metawearboard_free(self.board)
+    #def free(self):
+    #    """Frees unmanaged memory used by thie object"""
+    #    libmetawear.mbl_mw_metawearboard_free(self.board)
 
     def disconnect(self, tear_down=True):
         """Disconnects this client from the MetaWear device."""
+        libmetawear.mbl_mw_metawearboard_free(self.board)
         if tear_down:
             libmetawear.mbl_mw_metawearboard_tear_down(self.board)
         self.backend.disconnect()
